@@ -1,0 +1,5 @@
+models/
+*.wav
+*.mlmodelc
+.venv-coreml/
+.DS_Store
