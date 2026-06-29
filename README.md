@@ -151,13 +151,29 @@ If you cloned into `~/code/stot`, change it to `os.getenv("HOME") .. "/code/stot
 
 ## Use it
 
-1. Open any app — TextEdit, your browser, Slack, terminal, anywhere you can type.
+Two ways to dictate:
+
+**Hold-to-talk (default):**
+1. Open any app where you can type.
 2. **Hold Right Option** while speaking.
-3. **Release** when done.
+3. **Release** when done. The transcript types into the focused app within ~0.5–1.5 s.
 
-You'll see a "● Listening" alert while holding, then "✓" when the transcript types into your focused app (~0.5–1.5 s after release for short utterances).
+**Click-to-toggle (hands-free):**
+1. Click the **● dot in the menu bar** — it turns red, recording starts.
+2. Speak.
+3. Click the dot again — it turns yellow (transcribing), then back to gray when text is typed.
 
-That's it.
+### Menu bar indicator
+
+The little dot in your menu bar reflects the current state:
+
+| Color | Meaning |
+| --- | --- |
+| Gray ● | Idle — waiting for hotkey or click |
+| Red ● | Recording — speak now |
+| Yellow ● | Transcribing — whisper.cpp is working |
+
+Hover the icon for a tooltip describing what it'll do next.
 
 ## Customization
 
