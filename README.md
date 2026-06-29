@@ -1,4 +1,4 @@
-# t2s — Local Push-to-Talk Dictation for macOS
+# stot — Local Push-to-Talk Dictation for macOS
 
 Hold a key. Speak. Release. The transcript types itself into whatever app you're focused on.
 
@@ -12,12 +12,65 @@ Release          ─▶ whisper.cpp transcribes the WAV (Core ML + Metal acceler
                  ─▶ Hammerspoon types the transcript via simulated keystrokes
 ```
 
-Three small pieces:
+## Architecture
+
+```mermaid
+flowchart TD
+    User([👤 User])
+
+    subgraph macOS["macOS"]
+        Mic[🎙️ Microphone]
+        FocusedApp[📝 Focused App<br/>TextEdit / Slack / browser / etc.]
+    end
+
+    subgraph Hammerspoon["Hammerspoon (Lua runtime)"]
+        EventTap[hs.eventtap<br/>flagsChanged listener]
+        StateMachine[State Machine<br/>idle → recording →<br/>transcribing → idle]
+        KeyStrokes[hs.eventtap.keyStrokes<br/>injects text]
+    end
+
+    subgraph Native["Native subprocess calls"]
+        Sox[sox<br/>records 16 kHz mono WAV]
+        DictateSh[bin/stot-dictate.sh<br/>guards short clips,<br/>cleans transcript]
+        WhisperBin[whisper-cli<br/>whisper.cpp binary]
+    end
+
+    subgraph Models["Model files"]
+        GgmlBin[ggml-small.en.bin<br/>466 MB weights]
+        CoremlMlmodelc[ggml-small.en-encoder.mlmodelc<br/>Core ML encoder]
+    end
+
+    subgraph Hardware["Apple Silicon hardware"]
+        ANE[Apple Neural Engine<br/>via Core ML]
+        GPU[GPU<br/>via Metal]
+    end
+
+    User -- "1. Hold Right Option" --> EventTap
+    EventTap --> StateMachine
+    StateMachine -- "2. spawn" --> Sox
+    Mic -- "audio" --> Sox
+    Sox -- "writes" --> WAV[(/tmp/stot-*.wav)]
+
+    User -- "3. Release Right Option" --> EventTap
+    StateMachine -- "4. SIGTERM sox, then run" --> DictateSh
+    WAV --> DictateSh
+    DictateSh -- "invokes" --> WhisperBin
+    WhisperBin --> GgmlBin
+    WhisperBin --> CoremlMlmodelc
+    CoremlMlmodelc --> ANE
+    WhisperBin --> GPU
+    WhisperBin -- "transcript on stdout" --> DictateSh
+    DictateSh -- "cleaned text" --> StateMachine
+    StateMachine --> KeyStrokes
+    KeyStrokes -- "5. simulated keys" --> FocusedApp
+```
+
+The three small pieces that make this work:
 
 | Component | Role |
 | --- | --- |
 | `whisper.cpp` | Local STT inference (one C++ binary + a model file) |
-| `bin/t2s-dictate.sh` | Glue: WAV in → transcript out |
+| `bin/stot-dictate.sh` | Glue: WAV in → transcript out |
 | `hammerspoon/init.lua` | Hotkey listener + orchestration + keystroke injection |
 
 ## Requirements
@@ -30,8 +83,8 @@ Three small pieces:
 ## Install
 
 ```sh
-git clone git@github.com:abhishekonline/t2s.git ~/t2s
-cd ~/t2s
+git clone git@github.com:abhishekonline/stot.git ~/stot
+cd ~/stot
 ./install.sh
 ```
 
@@ -61,11 +114,11 @@ sudo xcodebuild -license accept
 Open `~/.hammerspoon/init.lua` (which is a symlink to `hammerspoon/init.lua` in this repo) and update the path constant at the top:
 
 ```lua
--- EDIT THIS to point at wherever you cloned the t2s repo:
-local REPO_ROOT = os.getenv("HOME") .. "/t2s"
+-- EDIT THIS to point at wherever you cloned the stot repo:
+local REPO_ROOT = os.getenv("HOME") .. "/stot"
 ```
 
-If you cloned into `~/code/t2s`, change it to `os.getenv("HOME") .. "/code/t2s"`.
+If you cloned into `~/code/stot`, change it to `os.getenv("HOME") .. "/code/stot"`.
 
 ## Install Hammerspoon and grant permissions
 
@@ -76,7 +129,7 @@ If you cloned into `~/code/t2s`, change it to `os.getenv("HOME") .. "/code/t2s"`
 
 2. **Launch Hammerspoon** (`open -a Hammerspoon`). A hammer icon appears in the menu bar.
 
-3. **Reload the config**: Hammerspoon menu bar icon → **Reload Config**. You should see a "t2s dictation loaded" alert.
+3. **Reload the config**: Hammerspoon menu bar icon → **Reload Config**. You should see a "stot dictation loaded" alert.
 
 4. **Grant three permissions** in **System Settings → Privacy & Security**:
 
@@ -118,7 +171,7 @@ Edit `hammerspoon/init.lua`:
 
   After editing, click Hammerspoon menu bar icon → Reload Config.
 
-- **Tell Whisper about your vocabulary**: if proper nouns like "Hammerspoon" or company-specific jargon transcribe wrong, edit `bin/t2s-dictate.sh` and add a `--prompt` flag to the `whisper-cli` invocation:
+- **Tell Whisper about your vocabulary**: if proper nouns like "Hammerspoon" or company-specific jargon transcribe wrong, edit `bin/stot-dictate.sh` and add a `--prompt` flag to the `whisper-cli` invocation:
   ```sh
   "$WHISPER_BIN" \
     -m "$MODEL" \
@@ -131,11 +184,11 @@ Edit `hammerspoon/init.lua`:
   ```
   This nudges (doesn't guarantee) word choice.
 
-- **Try a different model size**: in `bin/t2s-dictate.sh` change `T2S_MODEL` default, and download the size you want:
+- **Try a different model size**: in `bin/stot-dictate.sh` change `STOT_MODEL` default, and download the size you want:
   ```sh
   cd ~/.local/share/whisper.cpp
   bash ./models/download-ggml-model.sh base.en   # or tiny.en, medium.en, large-v3
-  cp models/ggml-base.en.bin ~/t2s/models/
+  cp models/ggml-base.en.bin ~/stot/models/
   ```
 
   | Model | Size | Latency (5 s clip on M-series) | Notes |
@@ -165,7 +218,7 @@ sox -d -r 16000 -c 1 -b 16 /tmp/test.wav trim 0 4 && afplay /tmp/test.wav
 
 **Transcription is slow (>2 s for a short clip).** Core ML model isn't loaded. Verify:
 ```sh
-ls ~/t2s/models/ggml-small.en-encoder.mlmodelc/
+ls ~/stot/models/ggml-small.en-encoder.mlmodelc/
 ```
 If it's missing, re-run `./install.sh` after installing full Xcode.
 
@@ -178,12 +231,12 @@ If it's missing, re-run `./install.sh` after installing full Xcode.
 ## What's in this repo
 
 ```
-t2s/
+stot/
 ├── README.md
 ├── LICENSE                    # MIT
 ├── install.sh                 # one-shot setup
 ├── bin/
-│   └── t2s-dictate.sh         # WAV → transcript wrapper
+│   └── stot-dictate.sh        # WAV → transcript wrapper
 ├── hammerspoon/
 │   └── init.lua               # hotkey + orchestration (symlinked to ~/.hammerspoon)
 ├── models/                    # gitignored: the .bin and .mlmodelc go here

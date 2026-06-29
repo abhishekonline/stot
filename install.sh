@@ -79,9 +79,9 @@ mkdir -p "$HOME/.hammerspoon"
 SRC="$REPO_ROOT/hammerspoon/init.lua"
 if [[ -e "$HAMMERSPOON_CONFIG" && ! -L "$HAMMERSPOON_CONFIG" ]]; then
   say "Existing $HAMMERSPOON_CONFIG found (not a symlink)."
-  read -r -p "Overwrite with t2s config? [y/N] " ans
+  read -r -p "Overwrite with stot config? [y/N] " ans
   if [[ "${ans:-N}" =~ ^[Yy]$ ]]; then
-    mv "$HAMMERSPOON_CONFIG" "${HAMMERSPOON_CONFIG}.t2s-backup.$(date +%s)"
+    mv "$HAMMERSPOON_CONFIG" "${HAMMERSPOON_CONFIG}.stot-backup.$(date +%s)"
     ln -s "$SRC" "$HAMMERSPOON_CONFIG"
   else
     say "Skipped. To install manually: ln -s '$SRC' '$HAMMERSPOON_CONFIG'"

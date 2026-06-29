@@ -3,13 +3,13 @@ set -euo pipefail
 
 WAV="${1:-}"
 if [[ -z "$WAV" || ! -f "$WAV" ]]; then
-  echo "usage: t2s-dictate.sh <wav-file>" >&2
+  echo "usage: stot-dictate.sh <wav-file>" >&2
   exit 2
 fi
 
 REPO_ROOT="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")/.." &> /dev/null && pwd)"
-WHISPER_BIN="${T2S_WHISPER_BIN:-$HOME/.local/share/whisper.cpp/build/bin/whisper-cli}"
-MODEL="${T2S_MODEL:-$REPO_ROOT/models/ggml-small.en.bin}"
+WHISPER_BIN="${STOT_WHISPER_BIN:-$HOME/.local/share/whisper.cpp/build/bin/whisper-cli}"
+MODEL="${STOT_MODEL:-$REPO_ROOT/models/ggml-small.en.bin}"
 
 if [[ ! -x "$WHISPER_BIN" ]]; then
   echo "whisper-cli not found at $WHISPER_BIN" >&2

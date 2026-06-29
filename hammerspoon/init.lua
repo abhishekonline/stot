@@ -1,12 +1,12 @@
--- t2s: push-to-talk dictation
+-- stot: push-to-talk dictation
 -- Hold the hotkey, speak, release. Transcript is typed into the focused app.
 
 -- ============================================================================
--- EDIT THIS to point at wherever you cloned the t2s repo:
-local REPO_ROOT = os.getenv("HOME") .. "/t2s"
+-- EDIT THIS to point at wherever you cloned the stot repo:
+local REPO_ROOT = os.getenv("HOME") .. "/stot"
 -- ============================================================================
 
-local DICTATE_SCRIPT = REPO_ROOT .. "/bin/t2s-dictate.sh"
+local DICTATE_SCRIPT = REPO_ROOT .. "/bin/stot-dictate.sh"
 local SOX_BIN = "/opt/homebrew/bin/sox"  -- Apple Silicon brew path; use /usr/local/bin/sox on Intel Macs
 
 -- CGEventFlag bit for the modifier key that triggers dictation.
@@ -29,7 +29,7 @@ end
 local function start_recording()
   if state ~= "idle" then return end
   state = "recording"
-  wav_path = "/tmp/t2s-" .. uuid() .. ".wav"
+  wav_path = "/tmp/stot-" .. uuid() .. ".wav"
   hs.alert.show("● Listening", 0.5)
   sox_task = hs.task.new(
     SOX_BIN,
@@ -87,4 +87,4 @@ local watcher = hs.eventtap.new({hs.eventtap.event.types.flagsChanged}, function
 end)
 watcher:start()
 
-hs.alert.show("t2s dictation loaded", 1)
+hs.alert.show("stot dictation loaded", 1)
