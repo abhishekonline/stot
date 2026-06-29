@@ -3,7 +3,7 @@
 
 -- ============================================================================
 -- EDIT THIS to point at wherever you cloned the stot repo:
-local REPO_ROOT = os.getenv("HOME") .. "/personal/stot"
+local REPO_ROOT = os.getenv("HOME") .. "/stot"
 -- ============================================================================
 
 local DICTATE_SCRIPT = REPO_ROOT .. "/bin/stot-dictate.sh"
