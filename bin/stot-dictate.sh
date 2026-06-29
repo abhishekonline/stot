@@ -1,6 +1,10 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
+# Hammerspoon spawns subprocesses with a minimal PATH that omits Homebrew.
+# Make sure soxi and friends resolve.
+export PATH="/opt/homebrew/bin:/usr/local/bin:/usr/bin:/bin:$PATH"
+
 WAV="${1:-}"
 if [[ -z "$WAV" || ! -f "$WAV" ]]; then
   echo "usage: stot-dictate.sh <wav-file>" >&2
@@ -20,9 +24,13 @@ if [[ ! -f "$MODEL" ]]; then
   exit 4
 fi
 
-DURATION_MS="$(soxi -D "$WAV" 2>/dev/null | awk '{printf "%d\n", $1 * 1000}')"
-if [[ -z "$DURATION_MS" || "$DURATION_MS" -lt 300 ]]; then
-  exit 0
+# Skip the duration guard if soxi isn't on PATH; whisper.cpp tolerates short
+# clips fine, the guard is just a perf optimization.
+if command -v soxi >/dev/null 2>&1; then
+  DURATION_MS="$(soxi -D "$WAV" 2>/dev/null | awk '{printf "%d\n", $1 * 1000}')"
+  if [[ -n "$DURATION_MS" && "$DURATION_MS" -lt 300 ]]; then
+    exit 0
+  fi
 fi
 
 "$WHISPER_BIN" \
