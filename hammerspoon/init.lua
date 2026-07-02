@@ -3,7 +3,7 @@
 
 -- ============================================================================
 -- EDIT THIS to point at wherever you cloned the stot repo:
-local REPO_ROOT = os.getenv("HOME") .. "/stot"
+local REPO_ROOT = os.getenv("HOME") .. "/personal/stot"
 -- ============================================================================
 
 local DICTATE_SCRIPT = REPO_ROOT .. "/bin/stot-dictate.sh"
@@ -44,8 +44,12 @@ local function render_menubar()
 end
 
 local function set_state(new_state)
+  local old_state = state
   state = new_state
   render_menubar()
+  if old_state ~= new_state then
+    print(string.format("stot: state changed: %s -> %s", old_state, new_state))
+  end
 end
 
 local function uuid()
@@ -56,19 +60,31 @@ local function uuid()
 end
 
 local function start_recording()
-  if state ~= "idle" then return end
+  if state ~= "idle" then
+    print(string.format("stot: start_recording ignored (state=%s)", state))
+    return
+  end
   set_state("recording")
   wav_path = "/tmp/stot-" .. uuid() .. ".wav"
+  print(string.format("stot: starting recording to %s", wav_path))
   sox_task = hs.task.new(
     SOX_BIN,
-    function() end,
+    function(exit_code, stdout, stderr)
+      if exit_code ~= 0 and exit_code ~= 15 then  -- 15 = SIGTERM (normal stop)
+        print(string.format("stot: sox exited with code %d: %s", exit_code, stderr or ""))
+      end
+    end,
     {"-d", "-r", "16000", "-c", "1", "-b", "16", wav_path}
   )
   sox_task:start()
 end
 
 local function transcribe_and_type()
-  if state ~= "recording" then return end
+  if state ~= "recording" then
+    print(string.format("stot: transcribe_and_type ignored (state=%s)", state))
+    return
+  end
+  print("stot: stopping recording, starting transcription")
   set_state("transcribing")
 
   if sox_task then
@@ -81,6 +97,7 @@ local function transcribe_and_type()
 
   -- Give sox ~150ms to finalize the WAV file on disk before transcribing.
   hs.timer.doAfter(0.15, function()
+    print(string.format("stot: transcribing %s", captured_wav))
     local dictate = hs.task.new(
       DICTATE_SCRIPT,
       function(exit_code, stdout, stderr)
@@ -88,8 +105,15 @@ local function transcribe_and_type()
         if exit_code == 0 and stdout and #stdout > 0 then
           local trimmed = stdout:gsub("^%s+", ""):gsub("%s+$", "")
           if #trimmed > 0 then
+            print(string.format("stot: typing %d chars: %s", #trimmed, trimmed:sub(1, 50)))
             hs.eventtap.keyStrokes(trimmed)
+          else
+            print("stot: transcription empty (after trim)")
           end
+        elseif exit_code ~= 0 then
+          print(string.format("stot: dictate script failed (exit=%d): %s", exit_code, stderr or ""))
+        else
+          print("stot: transcription empty")
         end
         set_state("idle")
       end,
@@ -102,6 +126,7 @@ end
 -- Click handler: toggle recording. Lets the user dictate hands-free from the
 -- menubar in addition to the hold-to-talk hotkey.
 local function toggle_recording_from_menubar()
+  print(string.format("stot: menubar clicked (state=%s)", state))
   if state == "idle" then
     start_recording()
   elseif state == "recording" then
@@ -121,13 +146,43 @@ local watcher = hs.eventtap.new({hs.eventtap.event.types.flagsChanged}, function
 
   if is_hotkey_down and not hotkey_down then
     hotkey_down = true
+    print("stot: hotkey pressed")
     start_recording()
   elseif not is_hotkey_down and hotkey_down then
     hotkey_down = false
+    print("stot: hotkey released")
     transcribe_and_type()
   end
   return false
 end)
+
+print("stot: starting eventtap watcher")
 watcher:start()
+if watcher:isEnabled() then
+  print("stot: eventtap started successfully")
+else
+  print("stot: WARNING - eventtap failed to start! Check Accessibility permissions.")
+end
+
+-- Watchdog: auto-restart the eventtap if macOS disables it.
+-- Checks every 5 seconds; if the watcher is stopped, restart it.
+local watchdog_check_count = 0
+local function ensure_watcher_running()
+  watchdog_check_count = watchdog_check_count + 1
+  if watcher and not watcher:isEnabled() then
+    print(string.format("stot: [check #%d] eventtap was disabled, restarting...", watchdog_check_count))
+    watcher:start()
+    if watcher:isEnabled() then
+      print("stot: eventtap restarted successfully")
+      hs.alert.show("stot: auto-restarted", 1)
+    else
+      print("stot: WARNING - eventtap restart failed!")
+    end
+  end
+end
+
+local watchdog_timer = hs.timer.new(5, ensure_watcher_running)
+watchdog_timer:start()
+print("stot: watchdog timer started (checks every 5 seconds)")
 
 hs.alert.show("stot dictation loaded", 1)
