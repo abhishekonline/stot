@@ -7,7 +7,7 @@ Hold a key. Speak. Release. The transcript types itself into whatever app you're
 ## How it works
 
 ```
-Hold Right Option ─▶ sox records mic to a WAV
+Hold Left Option ─▶ sox records mic to a WAV
 Release          ─▶ whisper.cpp transcribes the WAV (Core ML + Metal accelerated)
                  ─▶ Hammerspoon types the transcript via simulated keystrokes
 ```
@@ -45,13 +45,13 @@ flowchart TD
         GPU[GPU<br/>via Metal]
     end
 
-    User -- "1. Hold Right Option" --> EventTap
+    User -- "1. Hold Left Option" --> EventTap
     EventTap --> StateMachine
     StateMachine -- "2. spawn" --> Sox
     Mic -- "audio" --> Sox
     Sox -- "writes" --> WAV[(/tmp/stot-*.wav)]
 
-    User -- "3. Release Right Option" --> EventTap
+    User -- "3. Release Left Option" --> EventTap
     StateMachine -- "4. SIGTERM sox, then run" --> DictateSh
     WAV --> DictateSh
     DictateSh -- "invokes" --> WhisperBin
@@ -141,7 +141,7 @@ If you cloned into `~/code/stot`, change it to `os.getenv("HOME") .. "/code/stot
 
    Accessibility and Input Monitoring have a `+` button — add Hammerspoon manually.
 
-   **Microphone has no `+` button.** It only lists apps that have already requested mic access. To trigger the request: hold Right Option and speak — macOS will prompt for mic access; click Allow. (If the prompt doesn't appear, open Hammerspoon's Console from the menu bar icon and paste:
+   **Microphone has no `+` button.** It only lists apps that have already requested mic access. To trigger the request: hold Left Option and speak — macOS will prompt for mic access; click Allow. (If the prompt doesn't appear, open Hammerspoon's Console from the menu bar icon and paste:
    ```lua
    hs.task.new("/opt/homebrew/bin/sox", function() end, {"-d", "-r", "16000", "-c", "1", "-b", "16", "/tmp/permtest.wav"}):start()
    ```
@@ -155,7 +155,7 @@ Two ways to dictate:
 
 **Hold-to-talk (default):**
 1. Open any app where you can type.
-2. **Hold Right Option** while speaking.
+2. **Hold Left Option** while speaking.
 3. **Release** when done. The transcript types into the focused app within ~0.5–1.5 s.
 
 **Click-to-toggle (hands-free):**
@@ -180,9 +180,13 @@ Hover the icon for a tooltip describing what it'll do next.
 Edit `hammerspoon/init.lua`:
 
 - **Change the hotkey**: edit the `HOTKEY_FLAG` constant. Common values:
-  - Right Option: `0x00000040` (default)
+  - Left Option: `0x00000020` (default)
+  - Right Option: `0x00000040`
+  - Left Command: `0x00000008`
   - Right Command: `0x00000010`
+  - Left Shift: `0x00000002`
   - Right Shift: `0x00000004`
+  - Left Control: `0x00000001`
   - Right Control: `0x00002000`
 
   After editing, click Hammerspoon menu bar icon → Reload Config.

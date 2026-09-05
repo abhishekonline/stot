@@ -3,7 +3,7 @@
 
 -- ============================================================================
 -- EDIT THIS to point at wherever you cloned the stot repo:
-local REPO_ROOT = os.getenv("HOME") .. "/personal/stot"
+local REPO_ROOT = os.getenv("HOME") .. "/workspace/stot"
 -- ============================================================================
 
 local DICTATE_SCRIPT = REPO_ROOT .. "/bin/stot-dictate.sh"
@@ -11,8 +11,9 @@ local SOX_BIN = "/opt/homebrew/bin/sox"  -- Apple Silicon brew path; use /usr/lo
 
 -- CGEventFlag bit for the modifier key that triggers dictation.
 -- Right Option = 0x00000040 (default; rarely used in normal typing).
--- Right Command = 0x00000010, Right Shift = 0x00000004, Right Control = 0x00002000.
-local HOTKEY_FLAG = 0x00000040
+-- Left Option = 0x00000020, Right Command = 0x00000010, Left Command = 0x00000008,
+-- Right Shift = 0x00000004, Left Shift = 0x00000002, Right Control = 0x00002000, Left Control = 0x00000001.
+local HOTKEY_FLAG = 0x00000020
 
 local state = "idle"  -- idle | recording | transcribing
 local sox_task = nil
